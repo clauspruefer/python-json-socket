@@ -21,32 +21,24 @@ __copyright__= """
 """
 __version__  = "1.0.3"
 
+import abc
 import json
 import socket
 import struct
 import logging
-import time
 
-logger = logging.getLogger("jsocket")
-
-
-def _socket_fileno(sock):
-    try:
-        return sock.fileno()
-    except Exception:  # pylint: disable=broad-exception-caught
-        return None
+logger = logging.getLogger(__name__)
 
 
 class JsonSocket:
     """Lightweight JSON-over-TCP socket wrapper."""
 
-    def __init__(self, address='127.0.0.1', port=5489, timeout=60.0):
+    def __init__(self, address='127.0.0.1', port=64000, timeout=10):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.conn = self.socket
+        self.conn = None
         self._timeout = timeout
         self._address = address
         self._port = port
-        # Ensure the primary socket respects timeout for accept/connect operations
         self.socket.settimeout(self._timeout)
 
     def send_obj(self, obj):
@@ -67,55 +59,27 @@ class JsonSocket:
         """Recv until </message> end marker received."""
         buf = b''
         while True:
-            buf += self.conn.recv(1024)
+            tmp_buf = self.conn.recv(1024)
             # close on 0 bytes (close marker)
-            if len(buf) == 0:
+            if len(tmp_buf) == 0:
                 self.close()
                 break
+            buf += tmp_buf
             if buf.find(b'<message>') == 0 and buf.find(b'</message>') == len(buf)-10:
                 buf = buf.replace(b'<message>', b'')
                 buf = buf.replace(b'</message>', b'')
-                return json.loads(buf)
+                break
+        return json.loads(buf)
 
     def close(self):
         """Close active connection and the listening socket if open."""
-        logger.debug(
-            "Closing sockets (socket fd=%s, conn fd=%s)",
-            _socket_fileno(self.socket),
-            _socket_fileno(self.conn),
-        )
-        self._close_connection()
-        self._close_socket()
-
-    def _close_socket(self):
-        """Best-effort shutdown and close of the main socket."""
-        logger.debug("closing main socket (fd=%s)", _socket_fileno(self.socket))
         try:
-            if self.socket and self.socket.fileno() != -1:
-                try:
-                    self.socket.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
-                try:
-                    self.socket.close()
-                except OSError:
-                    pass
+            self.socket.shutdown(socket.SHUT_RDWR)
         except OSError:
             pass
 
-    def _close_connection(self):
-        """Best-effort shutdown and close of the accepted connection socket."""
-        logger.debug("closing connection socket (fd=%s)", _socket_fileno(self.conn))
         try:
-            if self.conn and self.conn is not self.socket and self.conn.fileno() != -1:
-                try:
-                    self.conn.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
-                try:
-                    self.conn.close()
-                except OSError:
-                    pass
+            self.socket.close()
         except OSError:
             pass
 
@@ -132,76 +96,72 @@ class JsonSocket:
         """Return the configured bind address."""
         return self._address
 
-    def _set_address(self, _address):
-        """No-op: address is read-only after initialization."""
-        return None
-
     def _get_port(self):
         """Return the configured bind port."""
         return self._port
 
-    def _set_port(self, _port):
-        """No-op: port is read-only after initialization."""
-        return None
 
-    timeout = property(_get_timeout, _set_timeout, doc='Get/set the socket timeout')
-    address = property(_get_address, _set_address, doc='read only property socket address')
-    port = property(_get_port, _set_port, doc='read only property socket port')
-
-
-class JsonServer(JsonSocket):
+class JsonServer(JsonSocket, metaclass=abc.ABCMeta):
     """Server socket that accepts one connection at a time."""
 
-    def __init__(self, address='127.0.0.1', port=5489):
+    def __init__(self, address='127.0.0.1', port=64000):
         super().__init__(address, port)
         self._bind()
+        self._server_loop()
+
+    def _server_loop(self):
+        while True:
+            try:
+                self.accept_connection()
+            except TimeoutError:
+                logger.debug("ServerLoop timeout exception.")
+            try:
+                self.send_obj(self._process_message(self.read_obj()))
+            except Exception as e:
+                logger.debug("Message processing exception:{}".format(e))
+
+    @abc.abstractmethod
+    def _process_message(self, obj):
+        """Pure Virtual Method
+
+        This method is called every time a JSON object is received from a client
+
+        @param obj JSON "key: value" object received from client
+        @retval None or a response object
+        """
+        # Return None in the base class to satisfy linters; subclasses should override.
+        return None
 
     def _bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((self.address, self.port))
+        self.socket.bind((self._address, self._port))
         self.socket.listen(1)
 
     def _accept(self):
         return self.socket.accept()
 
     def accept_connection(self):
-        """Listen and accept a single client connection; set timeout accordingly."""
+        """Accept a single client connection."""
         self.conn, addr = self._accept()
-        self.conn.settimeout(self.timeout)
         logger.debug(
-            "connection accepted, conn socket (%s,%d,%s)", addr[0], addr[1], str(self.conn.gettimeout())
+            "Connection accepted, conn socket (%s,%d)", addr[0], addr[1]
         )
-
-    def _is_connected(self):
-        try:
-            return (self.conn is not None) and (self.conn is not self.socket) and (self.conn.fileno() != -1)
-        except (OSError, AttributeError):
-            return False
-
-    connected = property(_is_connected, doc="True if server has an active client connection")
 
 
 class JsonClient(JsonSocket):
     """Client socket for connecting to a JsonServer and exchanging JSON messages."""
 
-    def __init__(self, address='127.0.0.1', port=5489):
+    def __init__(self, address='127.0.0.1', port=64000):
         super().__init__(address, port)
 
     def connect(self):
-        """Attempt to connect to the server up to 10 times with backoff."""
-        for attempt in range(1, 11):
-            try:
-                logger.debug("connect attempt %d to %s:%s", attempt, self.address, self.port)
-                self.socket.connect((self.address, self.port))
-                logger.info("Socket connected...")
-                return True
-            except Exception as msg:
-                logger.error("SockThread Error: %s", msg)
-                # Recreate the socket to avoid retrying on a potentially bad fd.
-                self._close_socket()
-                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.socket.settimeout(self._timeout)
-                self.conn = self.socket
-                logger.debug("Recreated socket for retry %d to %s:%s", attempt, self.address, self.port)
-                time.sleep(3)
-        return False
+        """Connect to the server."""
+        try:
+            logger.debug("connect to %s:%s", self._address, self._port)
+            self.socket.connect((self._address, self._port))
+            self.conn = self.socket
+            logger.info("Socket connected...")
+        except Exception as msg:
+            logger.error("Sock connection error: %s", msg)
+            return False
+        return True

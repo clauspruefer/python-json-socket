@@ -72,4 +72,3 @@
 
 """
 from jsocket.jsocket_base import *
-from jsocket.tserver import *
