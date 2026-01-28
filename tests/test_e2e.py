@@ -49,3 +49,25 @@ def test_client_server_send_receive():
 
     client.close()
     server.join()
+
+def test_client_server_send_round_trip():
+    """Server accepts a connection and echoes multiple payloads."""
+
+    server_address = '127.0.0.1'
+    server_port = 64000
+
+    server = EchoServer(address=server_address, port=server_port)
+    server.start()
+
+    client = jsocket.JsonClient(address=server_address, port=server_port)
+    assert client.connect() is True
+
+    # Echo round-trip
+    for i in range (0, 20000):
+        payload = {"echo": "hello", "i": i}
+        client.send_obj(payload)
+        echoed = client.read_obj()
+        assert echoed == payload
+
+    client.close()
+    server.join()
