@@ -1,74 +1,46 @@
-"""
-This entire file is simply a set of examples. The most basic is to
-simply create a custom server by inheriting tserver.ThreadedServer
-as shown below in MyServer.
-"""
-
 import jsocket
 import logging
+import threading
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 FORMAT = '[%(asctime)-15s][%(levelname)s][%(module)s][%(funcName)s] %(message)s'
 logging.basicConfig(format=FORMAT)
 
-class MyServer(jsocket.ThreadedServer):
-    """This is a basic example of a custom ThreadedServer."""
-    def __init__(self):
-        super(MyServer, self).__init__()
-        self.timeout = 2.0
-        logger.warning("MyServer class in customServer is for example purposes only.")
+
+class MyServer(jsocket.JsonServer):
+    """This is a basic example of a NonThreadedServer."""
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def _process_message(self, obj):
-        """ virtual method """
-        if obj != '':
-            if obj['message'] == "new connection":
-                logger.info("new connection.")
-                return {'message': 'welcome to jsocket server'}
+        print('Server rcv() obj:'.format(obj))
+        if isinstance(obj, dict):
+            return obj
+        return {"Status": "NoObect"}
 
-class MyFactoryThread(jsocket.ServerFactoryThread):
-    """This is an example factory thread, which the server factory will
-    instantiate for each new connection.
-    """
-    def __init__(self):
-        super(MyFactoryThread, self).__init__()
-        self.timeout = 2.0
+
+class MyThreadedServer(jsocket.JsonServer, threading.Thread):
+    """This is a basic example of a ThreadedServer."""
+    def __init__(self, **kwargs):
+        threading.Thread.__init__(self)
+        super().__init__(**kwargs)
 
     def _process_message(self, obj):
-        """ virtual method - Implementer must define protocol """
-        if obj != '':
-            if obj['message'] == "new connection":
-                logger.info("new connection...")
-                return {'message': 'welcome to jsocket server'}
-            else:
-                logger.info(obj)
-	
+        print('Server rcv() obj:'.format(obj))
+        if isinstance(obj, dict):
+            return obj
+        return {"Status": "NoObect"}
+
+    def run(self):
+        self.server_loop()
+
+
 if __name__ == "__main__":
-    import time
-    import jsocket
 
-    server = jsocket.ServerFactory(MyFactoryThread, address='127.0.0.1', port=5491)
-    server.timeout = 2.0
-    server.start()
+    # Start a threaded server (in parallel)
+    server1 = MyThreadedServer(address='127.0.0.1', port=5491)
+    server1.start()
 
-    time.sleep(1)
-    cPids = []
-    for i in range(10):
-        client = jsocket.JsonClient(address='127.0.0.1', port=5491)
-        cPids.append(client)
-        client.connect()
-        client.send_obj({"message": "new connection", "test": i})
-        logger.info(client.read_obj())
-
-        client.send_obj({"message": i, "key": 1 })
-
-    time.sleep(2)
-
-    for c in cPids:
-        c.close()
-
-    time.sleep(5)
-    logger.warning("Stopping server")
-    server.stop()
-    server.join()
-    logger.warning("Example script exited")
+    # Run a second server inside this process (needs ctrl-c twice to abort)
+    server2 = MyServer(address='127.0.0.1', port=5492).server_loop()
