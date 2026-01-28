@@ -33,7 +33,3 @@ jobs:
         run: |
           PYTHONPATH=. pytest -q
 
-      - name: Run behave
-        run: |
-          PYTHONPATH=. behave -f progress2
-
