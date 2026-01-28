@@ -67,13 +67,13 @@ API Highlights
 - JsonClient:
   - `connect()` returns True on success
   - `send_obj(dict)` sends a JSON object
-  - `read_obj()` blocks until a full message is received; raises `socket.timeout` or `RuntimeError("socket connection broken")`
+  - `read_obj()` blocks until a full message is received
   - `timeout` controls socket timeouts
 
 Examples and Tests
 ------------------
 
-- Examples: see `examples/example_servers.py` and `scripts/smoke_test.py`
+- Examples: see `examples/example_servers.py`
 - Pytest: end-to-end and listener tests under `tests/`
   - Run: `pytest -q`
 
