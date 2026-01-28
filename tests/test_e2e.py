@@ -2,63 +2,52 @@
 
 import time
 import pytest
+import threading
 
 import jsocket
 
 
-class EchoServer(jsocket.ThreadedServer):
+class EchoServer(jsocket.JsonServer, threading.Thread):
     """Minimal echo server for tests."""
     def __init__(self, **kwargs):
+        threading.Thread.__init__(self)
         super().__init__(**kwargs)
-        self.timeout = 2.0
-        self.is_connected = False
 
     def _process_message(self, obj):
-        if obj != '':
-            if obj.get('message') == 'new connection':
-                self.is_connected = True
-            # echo back if present
-            if 'echo' in obj:
-                return obj
-        return None
+        print('Server rcv() obj:'.format(obj))
+        if isinstance(obj, dict):
+            return obj
+        return {"Status": "NoObect"}
+
+    def run(self):
+        self.server_loop()
 
 
-@pytest.mark.timeout(10)
-def test_end_to_end_echo_and_connection():
-    """Server accepts a connection and echoes payloads end-to-end."""
-    try:
-        server = EchoServer(address='127.0.0.1', port=0)
-    except PermissionError as e:
-        pytest.skip(f"Socket creation blocked: {e}")
+def test_client_server_send_receive():
+    """Server accepts a connection and echoes payload (json object)."""
 
-    client = None
-    # Discover the ephemeral port chosen by the OS
-    _, port = server.socket.getsockname()
+    server_address = '127.0.0.1'
+    server_port = 64000
+
+    server = EchoServer(address=server_address, port=server_port)
     server.start()
 
-    try:
-        client = jsocket.JsonClient(address='127.0.0.1', port=port)
-        assert client.connect() is True
+    client = jsocket.JsonClient(address=server_address, port=server_port)
+    assert client.connect() is True
 
-        # Signal connection and wait briefly for server to process
-        client.send_obj({"message": "new connection"})
-        time.sleep(0.2)
-        assert server.is_connected is True
+    # Send simple json dict
+    payload = {"message": "new connection"}
+    client.send_obj(payload)
+    echoed = client.read_obj()
+    assert echoed == payload
 
-        # Echo round-trip
-        payload = {"echo": "hello", "i": 1}
-        client.send_obj(payload)
+    time.sleep(1)
 
-        # Server only echoes when _process_message returns; give it a moment
-        # and then read the response
-        echoed = client.read_obj()
-        assert echoed == payload
-    finally:
-        # Cleanup
-        if client is not None:
-            try:
-                client.close()
-            except OSError:
-                pass
-        server.stop()
-        server.join(timeout=3)
+    # Echo round-trip
+    payload = {"echo": "hello", "i": 1}
+    client.send_obj(payload)
+    echoed = client.read_obj()
+    assert echoed == payload
+
+    client.close()
+    server.join()
