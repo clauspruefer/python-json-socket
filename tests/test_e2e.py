@@ -1,6 +1,5 @@
 """Pytest end-to-end tests for basic client/server echo."""
 
-import time
 import pytest
 import threading
 
