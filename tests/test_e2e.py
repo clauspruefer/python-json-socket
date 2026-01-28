@@ -41,8 +41,6 @@ def test_client_server_send_receive():
     echoed = client.read_obj()
     assert echoed == payload
 
-    time.sleep(1)
-
     # Echo round-trip
     payload = {"echo": "hello", "i": 1}
     client.send_obj(payload)
