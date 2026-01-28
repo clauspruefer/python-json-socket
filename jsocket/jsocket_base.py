@@ -39,6 +39,7 @@ class JsonSocket:
         self._address = address
         self._port = port
         self.socket.settimeout(self._timeout)
+        self._shutdown_rcv = False
 
     def send_obj(self, obj):
         """Send a JSON-serializable object over the connection."""
@@ -62,6 +63,7 @@ class JsonSocket:
             # close on 0 bytes (close marker)
             if len(tmp_buf) == 0:
                 self.close()
+                self._shutdown_rcv = True
                 break
             buf += tmp_buf
             if buf.find(b'<message>') == 0 and buf.find(b'</message>') == len(buf)-10:
@@ -109,7 +111,7 @@ class JsonServer(JsonSocket, metaclass=abc.ABCMeta):
         self._server_loop()
 
     def _server_loop(self):
-        while True:
+        while self._shutdown_rcv = False:
             try:
                 self.accept_connection()
             except TimeoutError:
