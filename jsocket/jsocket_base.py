@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class JsonSocket:
     """Lightweight JSON-over-TCP socket wrapper."""
 
-    def __init__(self, address='127.0.0.1', port=64000, timeout=0):
+    def __init__(self, address='127.0.0.1', port=64000, timeout=10):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn = None
         self._timeout = timeout
@@ -69,7 +69,13 @@ class JsonSocket:
                 buf = buf.replace(b'<message>', b'')
                 buf = buf.replace(b'</message>', b'')
                 break
-        return json.loads(buf)
+            print(tmp_buf)
+        try:
+            ret_obj = json.loads(buf)
+        except Exception as e:
+            ret_obj = {}
+        buf = b''
+        return ret_obj
 
     def close(self):
         """Close active connection and the listening socket if open."""
@@ -107,14 +113,13 @@ class JsonServer(JsonSocket, metaclass=abc.ABCMeta):
     def __init__(self, address='127.0.0.1', port=64000):
         super().__init__(address, port)
         self._bind()
-        self._server_loop()
 
-    def _server_loop(self):
-        while self._shutdown_rcv = False:
+    def server_loop(self):
+        while self._shutdown_rcv is False:
             try:
                 self.accept_connection()
-            except TimeoutError:
-                logger.debug("ServerLoop timeout exception.")
+            except TimeoutError as e:
+                logger.debug("ServerLoop exception:{}".format(e))
             try:
                 self.send_obj(self._process_message(self.read_obj()))
             except Exception as e:
