@@ -7,7 +7,9 @@ python-json-socket (jsocket)
 
 Simple JSON-over-TCP sockets for Python. This library provides:
 
-- JsonClient/JsonServer: encapsulated JSON message framing over TCP
+- JsonClient / JsonServer: encapsulated JSON message framing over TCP
+- Non-Blocking Socket (IO)
+- 1:1 Client / Server Connection (no Mult-Client support)
 
 It aims to be small, predictable, and easy to integrate in tests or small services.
 
