@@ -24,7 +24,6 @@ __version__  = "1.0.3"
 import abc
 import json
 import socket
-import struct
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ logger = logging.getLogger(__name__)
 class JsonSocket:
     """Lightweight JSON-over-TCP socket wrapper."""
 
-    def __init__(self, address='127.0.0.1', port=64000, timeout=10):
+    def __init__(self, address='127.0.0.1', port=64000, timeout=0):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn = None
         self._timeout = timeout
@@ -157,11 +156,11 @@ class JsonClient(JsonSocket):
     def connect(self):
         """Connect to the server."""
         try:
-            logger.debug("connect to %s:%s", self._address, self._port)
+            logger.debug("Connect to %s:%s", self._address, self._port)
             self.socket.connect((self._address, self._port))
             self.conn = self.socket
             logger.info("Socket connected...")
         except Exception as msg:
-            logger.error("Sock connection error: %s", msg)
+            logger.error("Socket connection error: %s", msg)
             return False
         return True
