@@ -1,5 +1,5 @@
 """ @package jsocket
-    @brief Main package importing two modules, jsocket_base and tserver into the scope of jsocket.
+    @brief Main package importing one module jsocket_base into the scope of jsocket.
 
     @example example_servers.py
 
