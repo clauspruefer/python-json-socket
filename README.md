@@ -1,16 +1,13 @@
 python-json-socket (jsocket)
 ============================
 
-[![CI](https://github.com/chris-piekarski/python-json-socket/actions/workflows/ci.yml/badge.svg)](https://github.com/chris-piekarski/python-json-socket/actions/workflows/ci.yml)
+[![CI](https://github.com/clauspruefer/python-json-socket/actions/workflows/ci.yml/badge.svg)](https://github.com/clauspruefer/python-json-socket/actions/workflows/ci.yml)
 ![PyPI](https://img.shields.io/pypi/v/jsocket.svg)
 ![Python Versions](https://img.shields.io/pypi/pyversions/jsocket.svg)
-![License](https://img.shields.io/pypi/l/jsocket.svg)
 
 Simple JSON-over-TCP sockets for Python. This library provides:
 
-- JsonClient/JsonServer: length‑prefixed JSON message framing over TCP
-- ThreadedServer: a single-connection server running in its own thread
-- ServerFactory/ServerFactoryThread: a per‑connection worker model for multiple clients
+- JsonClient/JsonServer: encapsulated JSON message framing over TCP
 
 It aims to be small, predictable, and easy to integrate in tests or small services.
 
