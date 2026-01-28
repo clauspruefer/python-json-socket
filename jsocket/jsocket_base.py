@@ -31,13 +31,11 @@ logger = logging.getLogger(__name__)
 class JsonSocket:
     """Lightweight JSON-over-TCP socket wrapper."""
 
-    def __init__(self, address='127.0.0.1', port=64000, timeout=10):
+    def __init__(self, address='127.0.0.1', port=64000):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn = None
-        self._timeout = timeout
         self._address = address
         self._port = port
-        self.socket.settimeout(self._timeout)
         self._shutdown_rcv = False
 
     def send_obj(self, obj):
@@ -89,15 +87,6 @@ class JsonSocket:
         except OSError:
             pass
 
-    def _get_timeout(self):
-        """Get the current socket timeout in seconds."""
-        return self._timeout
-
-    def _set_timeout(self, timeout):
-        """Set the socket timeout in seconds and apply to the main socket."""
-        self._timeout = timeout
-        self.socket.settimeout(timeout)
-
     def _get_address(self):
         """Return the configured bind address."""
         return self._address
@@ -115,11 +104,8 @@ class JsonServer(JsonSocket, metaclass=abc.ABCMeta):
         self._bind()
 
     def server_loop(self):
+        self.accept_connection()
         while self._shutdown_rcv is False:
-            try:
-                self.accept_connection()
-            except TimeoutError as e:
-                logger.debug("ServerLoop exception:{}".format(e))
             try:
                 self.send_obj(self._process_message(self.read_obj()))
             except Exception as e:
