@@ -68,7 +68,6 @@ API Highlights
   - `connect()` returns True on success
   - `send_obj(dict)` sends a JSON object
   - `read_obj()` blocks until a full message is received
-  - `timeout` controls socket timeouts
 
 Examples and Tests
 ------------------
