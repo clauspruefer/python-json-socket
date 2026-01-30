@@ -57,23 +57,18 @@ class JsonSocket:
         buf = b''
         while True:
             tmp_buf = self.conn.recv(1024)
+            logger.debug("Recv() buffer:{}".format(tmp_buf))
             # close on 0 bytes (close marker)
             if len(tmp_buf) == 0:
                 self.close()
                 self._shutdown_rcv = True
-                break
+                return False
             buf += tmp_buf
             if buf.find(b'<message>') == 0 and buf.find(b'</message>') == len(buf)-10:
                 buf = buf.replace(b'<message>', b'')
                 buf = buf.replace(b'</message>', b'')
                 break
-            print(tmp_buf)
-        try:
-            ret_obj = json.loads(buf)
-        except Exception as e:
-            ret_obj = {}
-        buf = b''
-        return ret_obj
+        return json.loads(buf)
 
     def close(self):
         """Close active connection and the listening socket if open."""
@@ -109,7 +104,7 @@ class JsonServer(JsonSocket, metaclass=abc.ABCMeta):
             try:
                 self.send_obj(self._process_message(self.read_obj()))
             except Exception as e:
-                logger.debug("Message processing exception:{}".format(e))
+                logger.info("Message processing exception:{}".format(e))
 
     @abc.abstractmethod
     def _process_message(self, obj):
