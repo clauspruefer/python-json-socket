@@ -11,63 +11,22 @@
 
     @section Usage
 
-    The jsocket package is for use during the development of distributed systems. There are two ways to 
-    use the package. The first and simplest is to create a custom single threaded server by overloading the
-    the jsocket.ThreadedServer class (see example one below).
-
-    The second, is to use the server factory functionality by overloading the jsocket.ServerFactoryThread
-    class and passing the declaration to the jsocket.ServerFactory(FactoryThread) object. This creates a
-    multithreaded custom JSON server for any number of simultaneous clients (see example two below).
+    The jsocket package can be useful during the development of distributed systems, for management channel
+    communication or similar. The first and simplest is to create a custom server by overloading the
+    jsocket.ThreadedServer class (see example one below).
 
     @section Examples
-    @b 1: The following snippet simply creates a custom single threaded server by overloading jsocket.ThreadedServer
+    @b 1: The following snippet simply creates a custom server by overloading jsocket.JsonServer
     @code
     class MyServer(jsocket.ThreadedServer):
-        # This is a basic example of a custom ThreadedServer.
-        def __init__(self):
-            super(MyServer, self).__init__()
-            self.timeout = 2.0
-            logger.warning("MyServer class in customServer is for example purposes only.")
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
 
-        def _process_message(self, obj):
-            # virtual method
-            if obj != '':
-                if obj['message'] == "new connection":
-                    logger.info("new connection.")
-    @endcode
-
-    @b 2: The following snippet creates a custom factory thread and starts a factory server. The factory server
-    will allocate and run a factory thread for each new client.
-
-    @code
-    import jsocket
-
-    class MyFactoryThread(jsocket.ServerFactoryThread):
-        # This is an example factory thread, which the server factory will
-        # instantiate for each new connection.
-        def __init__(self):
-            super(MyFactoryThread, self).__init__()
-            self.timeout = 2.0
-
-        def _process_message(self, obj):
-            # virtual method - Implementer must define protocol
-            if obj != '':
-                if obj['message'] == "new connection":
-                    logger.info("new connection.")
-                else:
-                    logger.info(obj)
-
-    server = jsocket.ServerFactory(MyFactoryThread)
-    server.timeout = 2.0
-    server.start()
-
-    client = jsocket.JsonClient()
-    client.connect()
-    client.send_obj({"message": "new connection"})
-
-    client.close()
-    server.stop()
-    server.join()
+        def _process_message(self, call_obj):
+            if isinstance(call_obj, dict):
+                print(call_obj)
+                return call_obj
+            return { "Status": "Object type not dict" }
     @endcode
 
 """
